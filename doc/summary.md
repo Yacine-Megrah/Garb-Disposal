@@ -5,6 +5,7 @@
       1. en_mission
       2. en_repos
       3. en_ravetaillement
+      4. pret_pour_programme
  * M poubelles
    * Etats:
      1. vide
