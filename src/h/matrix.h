@@ -4,7 +4,9 @@
 #include <stdlib.h>
 
 /**
- * Creates a new matrix of size m*m
+ * Creates a new matrix of size*size
+ * 
+ * @param size The number of rows|columns
  * 
  * @return A dynamically allocated 2D integer array (matrix)
  *         Returns NULL if memory allocation fails

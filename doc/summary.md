@@ -13,6 +13,26 @@
      3. en_decharge
  * processus controlleur
  * Pere cree les processus fils
+```
+  DEBUT_
+    nv, mutex_c, mutex_p : sem;
+    cpt : int;
+  Camion(id):
+    init();
+    while(run):
+      attente_mission(etat=1);
+      exec_mission();
+      envoyer_cons();
+    attente_mission(etat=5);
+    exit(200 + id);
+  Controller():
+    init();
+    while(not fin):
+      choisir_2poubelles();
+      refresh_etats();
+      choisir_camion(last=last_id);
+  FIN_
+```
 ## Structures de donnees:
 ### A. Constantes:
   1. Dist_poubelles (M*M) entre poubelles

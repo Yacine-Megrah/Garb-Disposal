@@ -9,13 +9,13 @@ void free_matrix(int** T, size_t size){
 
 int **new_matrix(size_t size){
     int **T = NULL;
-    T = (int**)malloc(10 * sizeof(int*));
+    T = (int**)malloc(size * sizeof(int*));
     if(!T){
         return NULL;
     }
-    for(int i=0 ; i < 10 ; i++){
+    for(int i=0 ; i < size ; i++){
         T[i] = NULL;
-        T[i] = (int*)malloc(10 * sizeof(int));
+        T[i] = (int*)malloc(size * sizeof(int));
         if(!T[i]){
             free_matrix(T, i-1);
             return NULL;
