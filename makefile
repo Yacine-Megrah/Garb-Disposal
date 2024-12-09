@@ -1,3 +1,6 @@
-all:
-	gcc main.c -o ./bin/main.exe;
-	./bin/main.exe;
+main: ./src/main.c ./src/matrix.c
+	gcc $^ -o ./bin/$@.exe;
+	./bin/$@.exe;
+test: ./src/test.c ./src/matrix.c
+	gcc $^ -o ./bin/$@.exe;
+	./bin/$@.exe;

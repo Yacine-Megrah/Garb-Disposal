@@ -32,5 +32,10 @@ int main(int argc, char *argv[]){
     int id = msgget(ftok("./src/test.c", 102), 0666 | IPC_CREAT);
     printf("id msgQ: %d\n", id);
 
+    enum myEnum {A=12 , B} enu[18] = {[0 ... 17] = 1};
+    for(int i = 0 ; i < 18 ; i++){
+        printf("enum[%d] = %d, ", i, enu[i]);
+    }printf("\n");
+
     return EXIT_SUCCESS;
 }

@@ -19,18 +19,18 @@
 #define MAX 12
 #define C 2
 
-typedef enum {
+typedef enum E_poubelle {
     VIDE = 1,
     PLEINE,
     EN_DECHARGE,
-} etat_poubelle;
+} E_poubelle;
 
-typedef enum {
+typedef enum E_camion {
     EN_MISSION = 1,
     EN_REPOS,
     EN_RAVETAILLEMENT,
     PRET_POUR_PROG,
-} etat_camion;
+} E_camion;
 
 typedef struct msgbuf{
     long mtype; //id camion
@@ -49,12 +49,11 @@ typedef struct tamp_t{
     camion_t camions[R];
 } tamp_t;
 
-void destroy_structures(
-    int **d_poubelles,
+void destroy_ipc(
     tamp_t* e_camions,
     int tamp_id, int file_msg_id){
     
-    if(file_msg_id){
+    if(file_msg_id > -1){
         msgctl(file_msg_id, IPC_RMID, NULL);
         printf("file de msg cloturee\n");
     }
@@ -63,24 +62,12 @@ void destroy_structures(
         shmctl(tamp_id, IPC_RMID, NULL);
         printf("tampon cloture\n");
     }
-    if(d_poubelles){
-        free(d_poubelles);
-        printf("d_poubelles cloturee\n");}
 }
 
-int init_structures(int ***d_poubelles,
-                    tamp_t **e_camions,
-                    int m, int n,
-                    int *tamp_id, int *file_msg_id)
-{
-    *d_poubelles = new_matrix(m);
-    if(*d_poubelles == NULL){
-        printf("echec malloc dist_decharge\n");
-        return 1;
-    }
+int init_ipc(tamp_t **e_camions, int *tamp_id, int *file_msg_id){
 
     key_t key_tamp = ftok("./src/main.c", 64);
-    int id = shmget(key_tamp, sizeof(tamp_t) * n, 0666 | IPC_CREAT);
+    int id = shmget(key_tamp, sizeof(tamp_t), 0666 | IPC_CREAT);
     if (id == -1){
         printf("echec creation du tampon etats_camions, error[%s]\n", strerror(errno));
         return 1;
@@ -95,52 +82,20 @@ int init_structures(int ***d_poubelles,
         return 1;
     }
     *file_msg_id = id;
-    
-    printf("[%d ,%d ,%d ,%d]\n", d_poubelles, e_camions, *tamp_id, *file_msg_id);
-    
-    FILE *f_poubelles = fopen("./bin/dist.dat", "w+");
-    for(int i = 0; i < m ; i++){
-        (*d_poubelles)[i][i] = 2 + (rand()%9);
-        fprintf(f_poubelles, "D[%d,%d]: %d, ", i, i, (*d_poubelles)[i][i]);
-        for(int j = i + 1 ; j < m ; j++){
-            (*d_poubelles)[i][j] = 1 + (rand()%10);
-            (*d_poubelles)[j][i] = (*d_poubelles)[i][j];
-            fprintf(f_poubelles, "P[%d,%d]: %d, ", i, j, (*d_poubelles)[i][j]);
-        }
-    }
-    fclose(f_poubelles);
 
     return 0;
 }
 
-void camion_destroy(tamp_t *e_camions){
-    if(e_camions){
-        printf("\tCamion detach tamp.\n");
-        shmdt(e_camions);
-    }
-}
+void Camion(int id, int _tamp_id, int _msg_id){
 
-int camion_init(int id, int tamp_id, int msg_id, tamp_t **e_camions){
-    e_camions = shmat(tamp_id, e_camions, 0666);
-    if(!e_camions){
-        printf("Camion(%d)::echec attachement tampon. err[%s]\n", id, strerror(errno));
-        return 1;
-    }
-    if(msgget(ftok("./src/main.c", 64), 0666) != msg_id){
-        printf("\tCamion(%d):: File de messages introuvable\n", id);
-        return 1;
-    }
-    return 0;
-}
-
-void Camion(int id, int tamp_id, int msg_id){
+    int tamp_id, msg_id;
     tamp_t *etats_camions = NULL;
     msgbuf_t message;
 
-    if(camion_init(id, tamp_id, msg_id, &etats_camions)){
-        printf("Erreur sur Init() Camion[%d]\n", id);
-        camion_destroy(etats_camions);
-        exit(500 + id);
+    if(init_ipc(&etats_camions, &tamp_id, &msg_id) == 1 || _tamp_id != tamp_id || _msg_id != msg_id){
+        printf("Erreur init Camion[%d], err{%s}\n", id, strerror(errno));
+        if(etats_camions)shmdt(etats_camions);
+        exit(500+id);
     }
 
     int fin = 0;
@@ -148,11 +103,25 @@ void Camion(int id, int tamp_id, int msg_id){
 
     }
 
-    camion_destroy(etats_camions);
+    if(etats_camions)shmdt(etats_camions);
     exit(200 + id);
 }
-void Controlleur(){
+
+void Controlleur(int n, int m, int _tamp_id, int _msg_id){
+    E_camion e_camions[n];
+    E_poubelle e_poubelles[m];
     
+    int tamp_id, msg_id;
+    tamp_t *etats_camions = NULL;
+    msgbuf_t message;
+
+    if(init_ipc(&etats_camions, &tamp_id, &msg_id) == 1 || _tamp_id != tamp_id || _msg_id != msg_id){
+        printf("Erreur init Controlleur, err{%s}\n", strerror(errno));
+        if(etats_camions)shmdt(etats_camions);
+        exit(500);
+    }
+
+    if(etats_camions)shmdt(etats_camions);
     exit(200);
 }
 
@@ -162,27 +131,26 @@ int main(int argc, char* argv[]){
     int m = 10;
     int n = 5;
     int cp = 300;
-    int **dist_poubelles = NULL;
     tamp_t *etats_camions = NULL;
 
     srand(time(NULL));
 
-    if(init_structures(&dist_poubelles, &etats_camions, m, n, &tampid, &file_msg_id) == 1){
+    if(init_ipc(&etats_camions, &tampid, &file_msg_id) == 1){
         printf("Erreur: echec init structures\n");
-        destroy_structures(dist_poubelles, etats_camions, tampid, file_msg_id);
+        destroy_ipc(etats_camions, tampid, file_msg_id);
         return 1;
     }
-    printf("before fork()\n");
+    
     int _waits = 0;
     int id = fork();
     if(!id){
         _waits++;
-        Controlleur();
+        Controlleur(n, m, tampid, file_msg_id);
     }else if (id == -1){
         printf("fork() failed\n");
     }
     
-    for(int i = 0; i++ ; i < n){
+    for(int i = 1; i++ ; i <= n){
         if(!id){
             _waits++;
             Camion(i, tampid, file_msg_id);
@@ -196,9 +164,7 @@ int main(int argc, char* argv[]){
         _waits--;
     }
     
-    printf("before destroy()\n");
-    printf("[%d ,%d ,%d ,%d ,%d]\n", dist_poubelles, etats_camions, tampid, file_msg_id);
-    destroy_structures(dist_poubelles, etats_camions, tampid, file_msg_id);
+    destroy_ipc(etats_camions, tampid, file_msg_id);
 
     return EXIT_SUCCESS;
 }
